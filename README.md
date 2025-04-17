@@ -2,7 +2,15 @@
 
 AI Pipe lets you build web apps that can access LLM APIs (e.g. OpenAI, Gemini, OpenRouter, etc.) without a back-end.
 
-An instance is hosted at <https://aipipe.org/>. You can host your own on CloudFlare.
+An instance is hosted at <https://aipipe.org/>. You can host your own on CloudFlare. Licensed under [MIT](LICENSE).
+
+## User Guide
+
+Visit these pages:
+
+- **[aipipe.org](https://aipipe.org/)** to understand how it works.
+- **[aipipe.org/login](https://aipipe.org/login)** with a Google Account to get your AI Pipe Token and track your usage.
+- **[aipipe.org/playground](https://aipipe.org/playground)** to explore models and chat with them.
 
 ## Developer Guide
 
@@ -48,7 +56,7 @@ This app will:
 - `GET /usage?email=...&days=...`
 
   - Returns usage data for specified email and time period
-  - Response: `{ budget, days, cost, usage: [{date, cost}] }`
+  - Response: `{ budget, days, cost, usage: [{date, cost}, {date, cost}, ...] }`
   - Useful for displaying cost dashboards or monitoring usage
 
 - `GET /openrouter/v1/models`
@@ -58,6 +66,7 @@ This app will:
   - Use to show available models to users
 
 - `POST /openrouter/v1/chat/completions`
+
   - Chat completion endpoint
   - Request body:
     ```js
@@ -71,7 +80,22 @@ This app will:
   - Streaming response: Server-Sent Events with `text/event-stream` content type
   - Cost tracked automatically and accessible via `/usage` endpoint
 
+- `GET token?credential=...` converts a Google Sign-In credential into an AI Pipe token:
+  - When a user clicks "Sign in with Google" on the login page, Google's client library returns a JWT credential
+  - The login page sends this credential to `/token?credential=...`
+  - AI Pipe verifies the credential using Google's public keys
+  - If valid, AI Pipe signs a new token containing the user's email (and optional salt) using `AIPIPE_SECRET`
+  - Returns: `{ token, email, name, picture, ... }` where additional fields come from Google's profile
+
 ## Admin Guide
+
+To self-host AI Pipe, you need a:
+
+- [CloudFlare Account](https://dash.cloudflare.com/) - hosts your AI Pipe instance
+- [OpenRouter API Key](https://openrouter.ai/settings) - to access the LLM models
+- [Google Client ID](https://console.cloud.google.com/apis/credentials) - for user login. Add OAuth 2.0 redirect URLs:
+  - https://aipipe.org/login (or your domain)
+  - http://localhost:8787/login (for testing)
 
 1. Clone and install:
 
@@ -99,7 +123,7 @@ const salt = {
 };
 ```
 
-3. Create `.dev.vars` with your secrets:
+3. Create `.dev.vars` (which is `.gitignore`d) with your secrets:
 
 ```bash
 # Required: Your JWT signing key
@@ -110,7 +134,15 @@ OPENROUTER_API_KEY=sk-or-v1-...  # via openrouter.ai/settings
 OPENAI_API_KEY=sk-...            # via platform.openai.com/api-keys
 ```
 
-4. Deploy to Cloudflare:
+4. Test your deployment:
+
+```bash
+npm run dev   # Runs at http://localhost:8787
+npm test      # Run all tests
+curl http://localhost:8787/usage -H "Authorization: $AIPIPE_TOKEN"
+```
+
+5. Deploy to Cloudflare:
 
 ```bash
 # Add secrets to production
@@ -120,12 +152,47 @@ npx wrangler secret put OPENAI_API_KEY
 
 # Deploy
 npm run deploy
+
+# Test
+BASE_URL=https://aipipe.org npm test
 ```
 
-4. Test your deployment:
+## Architecture
 
-```bash
-npm test                 # Run all tests
-npm run dev             # Local development
-curl http://localhost:8787/usage  # Test API
+### File Structure
+
+- `src/worker.js`: Main entry point. Handles authentication, proxying with streaming, cost tracking
+- `src/providers.js`: Defines parameters for each LLM providers, e.g. endpoints, API keys, cost calculation
+- `src/cost.js`: Tracks daily cost per user via Durable Objects
+- `src/config.js`: Configuration for budget limits by user/domain, token invalidation
+
+### Database Schema
+
+The `cost` table in Durable Objects stores:
+
+```sql
+CREATE TABLE cost (
+  email TEXT,      -- User's email address
+  date TEXT,       -- YYYY-MM-DD in UTC
+  cost NUMBER,     -- Cumulative cost for the day
+  PRIMARY KEY (email, date)
+);
 ```
+
+### Provider Interface
+
+Each provider in `providers.js` implements:
+
+```js
+{
+  base: "https://api.provider.com",     // Base URL to proxy to
+  key: "PROVIDER_API_KEY",             // Environment variable with API key
+  cost: async ({ model, usage }) => {  // Calculate cost for a request
+    return {
+      cost: /* Calculate cost based on prompt & completion tokens */
+    }
+  }
+}
+```
+
+Add new providers by implementing this interface and adding routing in `worker.js`.
