@@ -43,7 +43,7 @@
     <div class="row align-items-center">
       <div class="col-lg-6 mb-3">
         <h1 class="display-4 fw-bold mb-3 text-shadow">Run AI Web Apps Without a Backend</h1>
-        <p class="lead mb-4">Access OpenRouter and other LLM  APIs directly from your frontend. Simple, secure, and scalable.</p>
+        <p class="lead mb-4">Access LLMs directly from your browser. Simple, secure, and scalable.</p>
         <a href="login" class="btn btn-primary btn-lg me-3">Log in</a>
         <a href="playground" class="btn btn-outline-light btn-lg">Playground</a>
       </div>
@@ -58,7 +58,7 @@ const response = await fetch("https://aipipe.org/openrouter/v1/chat/completions"
   method: "POST",
   headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
   body: JSON.stringify({
-    "model": "openai/gpt-4o-mini",
+    "model": "openai/gpt-4.1-nano",
     "messages": [{ "role": "user", "content": "What is 2 + 2?" }]
   })
 }).then(r => r.json());
@@ -108,7 +108,7 @@ const response = await fetch("https://aipipe.org/openrouter/v1/chat/completions"
   <section id="documentation" class="py-5">
     <div class="container" style="max-width: 50rem">
       <h2 class="text-center mb-5">Documentation</h2>
-      <p>Add this script to your HTML file:</p>
+      <h3>OpenRouter</h3>
       <pre><code class="language-javascript">import { getProfile } from "https://aipipe.org/aipipe.js";
 
 const { token, email } = getProfile();
@@ -118,13 +118,13 @@ const response = await fetch("https://aipipe.org/openrouter/v1/chat/completions"
   method: "POST",
   headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
   body: JSON.stringify({
-    "model": "openai/gpt-4o-mini",
+    "model": "openai/gpt-4.1-nano",
     "messages": [{ "role": "user", "content": "What is 2 + 2?" }]
   })
 }).then(r => r.json());
 </code></pre>
 
-      <div class="text-bg-dark bg-opacity-25 p-3">
+      <div class="text-bg-dark bg-opacity-25 p-3 mb-3">
         <p>This will:</p>
         <ol id="docs-details">
           <li><strong>Redirect the user to <a href="https://aipipe.org/login" class="text-reset">AI Pipe's login</a>.</strong>
@@ -149,6 +149,23 @@ const response = await fetch("https://aipipe.org/openrouter/v1/chat/completions"
           </li>
         </ol>
       </div>
+
+      <h3>OpenAI</h3>
+      <p>You can also use an OpenAI model directly with the
+        <a href="https://platform.openai.com/docs/api-reference/chat" class="text-reset">Chat Completion</a> or
+        <a href="https://platform.openai.com/docs/api-reference/responses" class="text-reset">Responses</a> API:</p>
+      <pre><code class="language-javascript">import { getProfile } from "https://aipipe.org/aipipe.js";
+
+const { token, email } = getProfile();
+if (!token) window.location = `https://aipipe.org/login?redirect=${window.location.href}`;
+
+const response = await fetch("https://aipipe.org/openrouter/v1/responses", {
+  method: "POST",
+  headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  body: JSON.stringify({ "model": "openai/gpt-4.1-nano", "input": "What is 2 + 2?" })
+}).then(r => r.json());
+</code></pre>
+
     </div>
   </section>
 
@@ -175,7 +192,7 @@ const response = await fetch("https://aipipe.org/openrouter/v1/chat/completions"
               <h3 class="card-title h5">AIPipe.org</h3>
               <div class="card-text">
                 <p><strong>Free while it lasts.</strong></p>
-                <p>I'm giving everyone $0.10 / week.</p>
+                <p>Everyone gets $0.10 / week free, for now.</p>
                 <p><a href="/login" class="btn btn-primary">Get Started</a></p>
               </div>
             </div>
