@@ -1,6 +1,6 @@
 # AI Pipe
 
-AI Pipe lets you build web apps that can access LLM APIs (e.g. OpenAI, Gemini, OpenRouter, etc.) without a back-end.
+AI Pipe lets you build web apps that can access LLM APIs (e.g. OpenRouter, OpenAI etc.) without a back-end.
 
 An instance is hosted at <https://aipipe.org/>. You can host your own on CloudFlare. Licensed under [MIT](LICENSE).
 
@@ -45,54 +45,153 @@ This app will:
 - Your app URL will have a `?aipipe_token=...&aipipe_email=...` with the user's token and email
 - `getProfile()` fetches these, stores them for future reference, and returns `token` and `email`
 
-3. **Make an LLM API call to OpenRouter and log the response.**
+3. **Make an LLM API call to OpenRouter or OpenAI and log the response.**
 
 - You can replace any call to [`https://openrouter.ai/api/v1`](https://openrouter.ai/docs/quickstart)
-  with `https://aipipe.org/openrouter/v1` and provide `Authorization: Bearer ${TOKEN}` as a header.
-- AI Pipe replaces the token and proxy the request via OpenRouter.
+  with `https://aipipe.org/openrouter/v1` and provide `Authorization: Bearer $AIPIPE_TOKEN` as a header.
+- Similarly, you can replace [`https://api.openai.com/v1`](https://platform.openai.com/docs/api-reference/)
+  with `https://aipipe.org/openai/v1` and provide `Authorization: Bearer $AIPIPE_TOKEN` as a header.
+- AI Pipe replaces the token and proxies the request via the provider.
 
 ## API
 
-- `GET /usage?email=...&days=...`
+**`GET /usage`**: Returns usage data for specified email and time period
 
-  - Returns usage data for specified email and time period
-  - Response: `{ budget, days, cost, usage: [{date, cost}, {date, cost}, ...] }`
-  - Useful for displaying cost dashboards or monitoring usage
+**Example**: Get usage for a user
 
-- `GET /openrouter/v1/models`
+```bash
+curl https://aipipe.org/usage -H "Authorization: $AIPIPE_TOKEN"
+```
 
-  - Lists available models
-  - Response matches OpenRouter's model list format
-  - Use to show available models to users
+Response:
 
-- `POST /openrouter/v1/chat/completions`
-
-  - Chat completion endpoint
-  - Request body:
-    ```js
+```json
+{
+  "email": "user@example.com",
+  "days": 7,
+  "cost": 0.000137,
+  "usage": [
     {
-      "model": "google/gemini-2.0-flash-lite-001", // etc.
-      "messages": [{"role": "user", "content": "Your prompt"}],
-      "stream": true
+      "date": "2025-04-16",
+      "cost": 0.000137
     }
-    ```
-  - Regular response: Standard OpenRouter completion response
-  - Streaming response: Server-Sent Events with `text/event-stream` content type
-  - Cost tracked automatically and accessible via `/usage` endpoint
+  ],
+  "limit": 0.1
+}
+```
 
-- `GET token?credential=...` converts a Google Sign-In credential into an AI Pipe token:
-  - When a user clicks "Sign in with Google" on the login page, Google's client library returns a JWT credential
-  - The login page sends this credential to `/token?credential=...`
-  - AI Pipe verifies the credential using Google's public keys
-  - If valid, AI Pipe signs a new token containing the user's email (and optional salt) using `AIPIPE_SECRET`
-  - Returns: `{ token, email, name, picture, ... }` where additional fields come from Google's profile
+**`GET token?credential=...`**: Converts a Google Sign-In credential into an AI Pipe token:
+
+- When a user clicks "Sign in with Google" on the login page, Google's client library returns a JWT credential
+- The login page sends this credential to `/token?credential=...`
+- AI Pipe verifies the credential using Google's public keys
+- If valid, AI Pipe signs a new token containing the user's email (and optional salt) using `AIPIPE_SECRET`
+- Returns: `{ token, email ... }` where additional fields come from Google's profile
+
+### OpenRouter API
+
+**`GET /openrouter/*`**: Proxy requests to OpenRouter
+
+**Example**: List [Openrouter models](https://openrouter.ai/docs/api-reference/list-available-models)
+
+```bash
+curl https://aipipe.org/openrouter/v1/models -H "Authorization: $AIPIPE_TOKEN"
+```
+
+Response:
+
+```json
+{
+  "data": [
+    {
+      "id": "google/gemini-2.5-pro-preview-03-25",
+      "name": "Google: Gemini 2.5 Pro Preview"
+      // ...
+    }
+  ]
+}
+```
+
+**Example**: Make a [chat completion request](https://openrouter.ai/docs/api-reference/chat-completion)
+
+```bash
+curl https://aipipe.org/openrouter/v1/chat/completions -H "Authorization: $AIPIPE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "google/gemini-2.0-flash-lite-001", "messages": [{ "role": "user", "content": "What is 2 + 2?" }] }'
+```
+
+Response:
+
+```json
+{
+  "id": "gen-...",
+  "provider": "Google",
+  "model": "google/gemini-2.0-flash-lite-001",
+  "object": "chat.completion"
+  // ...
+}
+```
+
+### OpenAI API
+
+**`GET /openai/*`**: Proxy requests to OpenAI
+
+**Example**: List [OpenAI models](https://platform.openai.com/docs/api-reference/models)
+
+```bash
+curl https://aipipe.org/openai/v1/models -H "Authorization: $AIPIPE_TOKEN"
+```
+
+Response:
+
+```json
+{
+  "object": "list",
+  "data": [
+    {
+      "id": "gpt-4o-audio-preview-2024-12-17",
+      "object": "model",
+      "created": 1734034239,
+      "owned_by": "system"
+    }
+    // ...
+  ]
+}
+```
+
+**Example**: Make a [responses request](https://platform.openai.com/docs/api-reference/responses)
+
+```bash
+curl https://aipipe.org/openai/v1/responses -H "Authorization: $AIPIPE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "gpt-4.1-nano", "input": "What is 2 + 2?" }'
+```
+
+Response:
+
+```json
+{
+  "id": "resp_...",
+  "object": "response",
+  "model": "gpt-4.1-nano-2025-04-14",
+  // ...
+  "output": [
+    {
+      "role": "assistant",
+      "content": [{ "text": "2 + 2 equals 4." }]
+      // ...
+    }
+  ]
+}
+```
 
 ## Admin Guide
 
 To self-host AI Pipe, you need a:
 
 - [CloudFlare Account](https://dash.cloudflare.com/) - hosts your AI Pipe instance
-- [OpenRouter API Key](https://openrouter.ai/settings) - to access the LLM models
+- [OpenRouter API Key](https://openrouter.ai/settings) - to access OpenRouter models
+- [OpenAI API Key](https://platform.openai.com/api-keys) - to access OpenAI models
 - [Google Client ID](https://console.cloud.google.com/apis/credentials) - for user login. Add OAuth 2.0 redirect URLs:
   - https://aipipe.org/login (or your domain)
   - http://localhost:8787/login (for testing)
@@ -165,6 +264,7 @@ BASE_URL=https://aipipe.org npm test
 - `src/providers.js`: Defines parameters for each LLM providers, e.g. endpoints, API keys, cost calculation
 - `src/cost.js`: Tracks daily cost per user via Durable Objects
 - `src/config.js`: Configuration for budget limits by user/domain, token invalidation
+- `src/utils.js`: Utilities to manage headers, etc.
 
 ### Database Schema
 

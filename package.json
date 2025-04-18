@@ -13,7 +13,7 @@
   "type": "module",
   "devDependencies": {
     "tap": "^21.1.0",
-    "wrangler": "^4.11.0"
+    "wrangler": "^4.12.0"
   },
   "dependencies": {
     "jose": "^6.0.10"

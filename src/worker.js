@@ -1,6 +1,7 @@
 import { budget, salt } from "./config.js";
 import * as jose from "jose";
 import { providers } from "./providers.js";
+import { updateHeaders, addCors } from "./utils.js";
 export { AIPipeCost } from "./cost.js";
 
 export default {
@@ -42,22 +43,21 @@ export default {
     const aiPipeCost = env.AIPIPE_COST.get(aiPipeCostId);
 
     // If usage data was requested, share usage and limit data
-    if (provider == "usage") return jsonResponse({ code: 200, limit, ...(await aiPipeCost.usage(email, days)) });
+    if (provider == "usage") return jsonResponse({ code: 200, ...(await aiPipeCost.usage(email, days)), limit });
 
     // Reject if user's cost usage is at limit
     const cost = await aiPipeCost.cost(email, days);
     if (cost >= limit) return jsonResponse({ code: 429, message: `Use $${cost} / $${limit} in ${days} days` });
 
-    // Construct the URL, headers, and body for fetching
-    const targetUrl = providers[provider].base + url.pathname.slice(provider.length + 1) + url.search;
-    const headers = skipHeaders(request.headers, []);
-    headers.set("Authorization", `Bearer ${env[providers[provider].key]}`);
-    const params = request.method == "POST" ? { body: await request.arrayBuffer() } : {};
+    // Allow providers to transform or reject
+    const path = url.pathname.slice(provider.length + 1) + url.search;
+    const { url: targetUrl, headers, error, ...params } = await providers[provider].transform({ path, request, env });
+    if (error) return jsonResponse(error);
 
     // Make the actual request
     const response = await fetch(targetUrl, {
       method: request.method,
-      headers: skipHeaders(headers, skipRequestHeaders),
+      headers: updateHeaders(headers, skipRequestHeaders),
       ...params,
     });
 
@@ -78,7 +78,7 @@ export default {
     // TODO: If the response is not JSON or SSE (e.g. image), handle cost.
 
     return new Response(body, {
-      headers: addCors(skipHeaders(response.headers, skipResponseHeaders)),
+      headers: addCors(updateHeaders(response.headers, skipResponseHeaders)),
       status: response.status,
       statusText: response.statusText,
     });
@@ -87,19 +87,6 @@ export default {
 
 const skipRequestHeaders = [/^content-length$/i, /^host$/i, /^cf-.*$/i, /^connection$/i, /^accept-encoding$/i];
 const skipResponseHeaders = [/^transfer-encoding$/i, /^connection$/i];
-
-function skipHeaders(headers, skipList) {
-  const result = new Headers();
-  for (const [key, value] of headers) if (!skipList.some((pattern) => pattern.test(key))) result.append(key, value);
-  return result;
-}
-
-function addCors(headers) {
-  headers.set("Access-Control-Allow-Origin", "*");
-  headers.set("Access-Control-Allow-Methods", "GET, POST");
-  headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
-  return headers;
-}
 
 function jsonResponse({ code, ...rest }) {
   return new Response(JSON.stringify(rest, null, 2), {
@@ -121,7 +108,9 @@ function sseTransform(addCost) {
       lines.forEach((line) => {
         if (line.startsWith("data: ")) {
           try {
-            const event = JSON.parse(line.slice(6));
+            let event = JSON.parse(line.slice(6));
+            // OpenAI's Response API returns the event inside a { response }
+            event = event.response ?? event;
             [model, usage] = [model ?? event.model, usage ?? event.usage];
           } catch {}
         }

@@ -115,14 +115,46 @@ t.test("Streaming completion and cost", async (t) => {
   const res = await fetch("/openrouter/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content: "What is 2 + 2?" }],
-      stream: true,
-    }),
+    body: JSON.stringify({ model, messages: [{ role: "user", content: "What is 2 + 2?" }], stream: true }),
   });
   t.equal(res.status, 200);
-  t.equal(res.headers.get("Content-Type"), "text/event-stream");
+  t.equal(res.headers.get("Content-Type").split(";")[0], "text/event-stream");
+
+  await res.text();
+  const usageEnd = await getUsage(token);
+  t.ok(usageEnd.cost > usageStart.cost);
+});
+
+t.test("OpenAI completion and cost", async (t) => {
+  const token = await createToken();
+  const usageStart = await getUsage(token);
+
+  const model = "gpt-4.1-nano";
+  const res = await fetch("/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ model, messages: [{ role: "user", content: "What is 2 + 2?" }] }),
+  });
+  t.equal(res.status, 200);
+  const body = await res.json();
+  t.match(body.object, "chat.completion");
+
+  const usageEnd = await getUsage(token);
+  t.ok(usageEnd.cost > usageStart.cost);
+});
+
+t.test("OpenAI responses streaming completion and cost", async (t) => {
+  const token = await createToken();
+  const usageStart = await getUsage(token);
+
+  const model = "gpt-4.1-nano";
+  const res = await fetch("/openai/v1/responses", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ model, input: "What is 2 + 2?", stream: true }),
+  });
+  t.equal(res.status, 200);
+  t.equal(res.headers.get("Content-Type").split(";")[0], "text/event-stream");
 
   await res.text();
   const usageEnd = await getUsage(token);
@@ -132,9 +164,7 @@ t.test("Streaming completion and cost", async (t) => {
 t.test("Budget limit exceeded", async (t) => {
   // This test assumes the user has already exceeded their budget
   const token = await createToken("blocked@example.com");
-  const res = await fetch("/openrouter/v1/models", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const res = await fetch("/openrouter/v1/models", { headers: { Authorization: `Bearer ${token}` } });
   t.equal(res.status, 429);
   const body = await res.json();
   t.match(body.message, /\$0 in 1 days/);

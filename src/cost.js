@@ -36,7 +36,7 @@ export class AIPipeCost extends DurableObject {
     const sql = "SELECT date, cost FROM cost WHERE email = ? AND date >= ? AND date <= ? ORDER BY date";
     const usage = (await this.ctx.storage.sql.exec(sql, email, ...dateRange(days, now))).toArray();
     const cost = usage.reduce((sum, row) => sum + row.cost, 0);
-    return { days, cost, usage };
+    return { email, days, cost, usage };
   }
 }
 
