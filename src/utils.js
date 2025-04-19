@@ -1,5 +1,8 @@
 import * as jose from "jose";
 
+// Convert date to YYYY-MM-DD in UTC
+export const ymd = (date) => date.toISOString().slice(0, 10);
+
 export function updateHeaders(headers, skip, update) {
   const result = new Headers();
   for (const [key, value] of headers) if (!skip.some((pattern) => pattern.test(key))) result.append(key, value);

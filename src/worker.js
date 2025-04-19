@@ -57,6 +57,12 @@ export default {
         const token = await createToken(email, env.AIPIPE_SECRET, salt[email] ? { salt: salt[email] } : {});
         return jsonResponse({ code: 200, token });
       }
+      if (action == "cost") {
+        if (request.method !== "POST") return jsonResponse({ code: 405, message: "Use POST /admin/cost" });
+        const { email, date, cost } = await request.json();
+        await aiPipeCost.setCost(email, date, cost);
+        return jsonResponse({ code: 200, message: `Cost for ${email} on ${date} set to ${cost}` });
+      }
       return jsonResponse({ code: 404, message: "Unknown admin action" });
     }
 

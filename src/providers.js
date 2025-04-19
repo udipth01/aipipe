@@ -39,8 +39,8 @@ export const providers = {
       // Chat Completion usage: { prompt_tokens, completion_tokens }
       // Responses API usage: {input_tokens, output_tokens}
       const cost =
-        ((usage?.prompt_tokens ?? usage?.input_tokens / 1e6) * input || 0) +
-        ((usage?.completion_tokens ?? usage?.output_tokens / 1e6) * output || 0);
+        (((usage?.prompt_tokens ?? usage?.input_tokens) * input) / 1e6 || 0) +
+        (((usage?.completion_tokens ?? usage?.output_tokens) * output) / 1e6 || 0);
       return { cost };
     },
   },

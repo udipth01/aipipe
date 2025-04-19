@@ -257,7 +257,7 @@ npx wrangler secret put OPENAI_API_KEY
 npm run deploy
 
 # Test
-BASE_URL=https://aipipe.org npm test
+BASE_URL=https://aipipe.org ADMIN_EMAILS=admin@example.com npm test
 ```
 
 ### Admin API
@@ -293,8 +293,23 @@ Response:
 
 ```json
 {
-  "code": 200,
   "token": "eyJhbGciOiJIUzI1NiI..."
+}
+```
+
+**`POST /admin/cost`**: Overwrite the cost usage for a user on a specific date. Only for admins.
+
+```bash
+curl https://aipipe.org/admin/cost -X POST -H "Authorization: $AIPIPE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "date": "2025-04-18", "cost": 1.23}'
+```
+
+Response:
+
+```json
+{
+  "message": "Cost for user@example.com on 2025-04-18 set to 1.23"
 }
 ```
 

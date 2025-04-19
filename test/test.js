@@ -1,8 +1,7 @@
 import t from "tap";
-import * as jose from "jose";
 import { readFileSync } from "fs";
 import { salt } from "../src/config.js";
-import { createToken } from "../src/utils.js";
+import { createToken, ymd } from "../src/utils.js";
 
 // Get base URL environment or default to localhost:8787
 const BASE_URL = process.env.BASE_URL || "http://localhost:8787";
@@ -205,4 +204,28 @@ t.test("Admin: invalid endpoint", async (t) => {
   t.equal(res.status, 404);
   const body = await res.json();
   t.match(body.message, /Unknown admin action/);
+});
+
+t.test("Admin: set cost", async (t) => {
+  const email = "test@example.com";
+  const date = ymd(new Date());
+  const token = await testToken(email);
+  const adminToken = await testToken(adminEmail);
+
+  // Get the usage of email for date (0 if missing)
+  const usageStart = await getUsage(token);
+  const originalCost = usageStart.usage.find((row) => row.date === date)?.cost ?? 0;
+
+  // Add/subtract 1 micro-dollar based on timestamp
+  const cost = originalCost + (Date.now() % 2 ? 0.000001 : -0.000001);
+  await fetch("/admin/cost", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${adminToken}` },
+    body: JSON.stringify({ email, date, cost }),
+  });
+
+  // Get the cost and verify it's within acceptable floating point error (1e-12)
+  const usageEnd = await getUsage(token);
+  const actualCost = usageEnd.usage.find((row) => row.date === date)?.cost ?? 0;
+  t.ok(Math.abs(actualCost - cost) < 1e-12);
 });

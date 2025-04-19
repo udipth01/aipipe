@@ -1,4 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
+import { ymd } from "./utils.js";
 
 export class AIPipeCost extends DurableObject {
   constructor(ctx, env) {
@@ -27,8 +28,8 @@ export class AIPipeCost extends DurableObject {
   /** Get cost incurred over the last `days` until `now` */
   async cost(email, days, now) {
     const sql = "SELECT SUM(cost) AS cost FROM cost WHERE email = ? AND date >= ? AND date <= ? ORDER BY date";
-    const { cost } = (await this.ctx.storage.sql.exec(sql, email, ...dateRange(days, now))).toArray();
-    return cost ?? 0;
+    const result = (await this.ctx.storage.sql.exec(sql, email, ...dateRange(days, now))).toArray();
+    return result[0]?.cost ?? 0;
   }
 
   /** Total and daily cost incurred by `email` over the last `days` days until `now` (optional) */
@@ -37,6 +38,16 @@ export class AIPipeCost extends DurableObject {
     const usage = (await this.ctx.storage.sql.exec(sql, email, ...dateRange(days, now))).toArray();
     const cost = usage.reduce((sum, row) => sum + row.cost, 0);
     return { email, days, cost, usage };
+  }
+
+  /** Overwrite cost for specific email and date (admin only) */
+  async setCost(email, date, cost) {
+    await this.ctx.storage.sql.exec(
+      "INSERT OR REPLACE INTO cost (email, date, cost) VALUES (?, ?, ?)",
+      email,
+      date,
+      cost
+    );
   }
 
   /** Get all usage data (admin only) */
@@ -51,6 +62,3 @@ function dateRange(days, now) {
   now = now ?? new Date();
   return [ymd(new Date(now - days * 24 * 60 * 60 * 1000)), ymd(now)];
 }
-
-// Convert date to YYYY-MM-DD in UTC
-const ymd = (date) => date.toISOString().slice(0, 10);
