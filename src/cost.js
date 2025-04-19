@@ -38,6 +38,12 @@ export class AIPipeCost extends DurableObject {
     const cost = usage.reduce((sum, row) => sum + row.cost, 0);
     return { email, days, cost, usage };
   }
+
+  /** Get all usage data (admin only) */
+  async allUsage() {
+    const sql = "SELECT email, date, cost FROM cost ORDER BY date DESC, email";
+    return (await this.ctx.storage.sql.exec(sql)).toArray();
+  }
 }
 
 /** Returns [now - days, now], both as YYYY-MM-DD (UTC) */

@@ -9,11 +9,11 @@ export const providers = {
     }),
     cost: async ({ model, usage }) => {
       const { pricing } = await getOpenrouterModel(model);
-      return (
+      const cost =
         (usage?.prompt_tokens * pricing?.prompt || 0) +
         (usage?.completion_tokens * pricing?.completion || 0) +
-        (+pricing?.request || 0)
-      );
+        (+pricing?.request || 0);
+      return { cost };
     },
   },
 
@@ -38,11 +38,10 @@ export const providers = {
       const [input, output] = openaiCost[model] ?? [0, 0];
       // Chat Completion usage: { prompt_tokens, completion_tokens }
       // Responses API usage: {input_tokens, output_tokens}
-      return {
-        cost:
-          ((usage?.prompt_tokens ?? usage?.input_tokens) * input || 0) +
-          ((usage?.completion_tokens ?? usage?.output_tokens) * output || 0),
-      };
+      const cost =
+        ((usage?.prompt_tokens ?? usage?.input_tokens / 1e6) * input || 0) +
+        ((usage?.completion_tokens ?? usage?.output_tokens / 1e6) * output || 0);
+      return { cost };
     },
   },
 };

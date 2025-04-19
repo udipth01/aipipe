@@ -1,3 +1,5 @@
+import * as jose from "jose";
+
 export function updateHeaders(headers, skip, update) {
   const result = new Headers();
   for (const [key, value] of headers) if (!skip.some((pattern) => pattern.test(key))) result.append(key, value);
@@ -10,4 +12,10 @@ export function addCors(headers) {
   headers.set("Access-Control-Allow-Methods", "GET, POST");
   headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
   return headers;
+}
+
+export async function createToken(email, secret, extraParams = {}) {
+  return await new jose.SignJWT({ email, ...extraParams })
+    .setProtectedHeader({ alg: "HS256" })
+    .sign(new TextEncoder().encode(secret));
 }

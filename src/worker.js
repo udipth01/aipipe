@@ -1,7 +1,7 @@
 import { budget, salt } from "./config.js";
 import * as jose from "jose";
 import { providers } from "./providers.js";
-import { updateHeaders, addCors } from "./utils.js";
+import { updateHeaders, addCors, createToken } from "./utils.js";
 export { AIPipeCost } from "./cost.js";
 
 export default {
@@ -21,7 +21,7 @@ export default {
     if (provider == "token") return await tokenFromCredential(url.searchParams.get("credential"), env.AIPIPE_SECRET);
 
     // Check if the URL matches a valid provider. Else let the user know
-    if (!providers[provider] && provider != "usage")
+    if (!providers[provider] && provider != "usage" && provider != "admin")
       return jsonResponse({ code: 404, message: `Unknown provider: ${provider}` });
 
     // Token must be present in Authorization: Bearer
@@ -45,9 +45,24 @@ export default {
     // If usage data was requested, share usage and limit data
     if (provider == "usage") return jsonResponse({ code: 200, ...(await aiPipeCost.usage(email, days)), limit });
 
+    // Handle admin endpoints
+    if (provider == "admin") {
+      const admins = (env.ADMIN_EMAILS || "").split(/[,\s]+/);
+      if (!admins.includes(payload.email)) return jsonResponse({ code: 403, message: "Admin access required" });
+
+      const action = url.pathname.split("/")[2];
+      if (action == "usage") return jsonResponse({ code: 200, data: await aiPipeCost.allUsage() });
+      if (action == "token") {
+        const email = url.searchParams.get("email") ?? payload.email;
+        const token = await createToken(email, env.AIPIPE_SECRET, salt[email] ? { salt: salt[email] } : {});
+        return jsonResponse({ code: 200, token });
+      }
+      return jsonResponse({ code: 404, message: "Unknown admin action" });
+    }
+
     // Reject if user's cost usage is at limit
-    const cost = await aiPipeCost.cost(email, days);
-    if (cost >= limit) return jsonResponse({ code: 429, message: `Use $${cost} / $${limit} in ${days} days` });
+    const usage = await aiPipeCost.cost(email, days);
+    if (usage >= limit) return jsonResponse({ code: 429, message: `Usage $${usage} / $${limit} in ${days} days` });
 
     // Allow providers to transform or reject
     const path = url.pathname.slice(provider.length + 1) + url.search;

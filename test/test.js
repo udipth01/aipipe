@@ -2,6 +2,7 @@ import t from "tap";
 import * as jose from "jose";
 import { readFileSync } from "fs";
 import { salt } from "../src/config.js";
+import { createToken } from "../src/utils.js";
 
 // Get base URL environment or default to localhost:8787
 const BASE_URL = process.env.BASE_URL || "http://localhost:8787";
@@ -10,11 +11,10 @@ const AIPIPE_SECRET = readFileSync(".dev.vars", "utf8")
   .find((l) => l.startsWith("AIPIPE_SECRET="))
   .split("=")[1];
 
-async function createToken(email = "test@example.com", salt) {
-  return await new jose.SignJWT({ email, ...(salt ? { salt } : {}) })
-    .setProtectedHeader({ alg: "HS256" })
-    .sign(new TextEncoder().encode(AIPIPE_SECRET));
-}
+const testToken = (email = "test@example.com", salt) => createToken(email, AIPIPE_SECRET, { salt });
+
+// Use the first admin email specified in the environment
+const adminEmail = (process.env.ADMIN_EMAILS || "admin@example.com").split(/[,\s]+/).at(0);
 
 async function fetch(path, { headers, ...params } = {}) {
   const url = `${BASE_URL}${path}`;
@@ -50,13 +50,13 @@ t.test("Invalid JWT token", async (t) => {
 });
 
 t.test("Valid JWT token", async (t) => {
-  const token = await createToken();
+  const token = await testToken();
   const res = await fetch("/openrouter/v1/models", { headers: { Authorization: `Bearer ${token}` } });
   t.not(res.status, 401);
 });
 
 t.test("Invalid provider", async (t) => {
-  const token = await createToken();
+  const token = await testToken();
   const res = await fetch("/invalid-provider/", { headers: { Authorization: `Bearer ${token}` } });
   t.equal(res.status, 404);
   const body = await res.json();
@@ -64,7 +64,7 @@ t.test("Invalid provider", async (t) => {
 });
 
 t.test("Invalid salt", async (t) => {
-  const token = await createToken(Object.keys(salt)[0]);
+  const token = await testToken(Object.keys(salt)[0]);
   const res = await fetch("/openrouter/v1/models", { headers: { Authorization: `Bearer ${token}` } });
   t.equal(res.status, 401);
   const body = await res.json();
@@ -72,7 +72,7 @@ t.test("Invalid salt", async (t) => {
 });
 
 t.test("Valid salt", async (t) => {
-  const token = await createToken(...Object.entries(salt)[0]);
+  const token = await testToken(...Object.entries(salt)[0]);
   const res = await fetch("/openrouter/v1/models", { headers: { Authorization: `Bearer ${token}` } });
   t.equal(res.status, 200);
   const body = await res.json();
@@ -80,7 +80,7 @@ t.test("Valid salt", async (t) => {
 });
 
 t.test("Usage endpoint", async (t) => {
-  const token = await createToken();
+  const token = await testToken();
   const usage = await getUsage(token);
   t.type(usage.limit, "number");
   t.type(usage.days, "number");
@@ -89,7 +89,7 @@ t.test("Usage endpoint", async (t) => {
 });
 
 t.test("Completion and cost", async (t) => {
-  const token = await createToken();
+  const token = await testToken();
   const usageStart = await getUsage(token);
 
   const model = "google/gemini-2.0-flash-lite-001";
@@ -108,7 +108,7 @@ t.test("Completion and cost", async (t) => {
 });
 
 t.test("Streaming completion and cost", async (t) => {
-  const token = await createToken();
+  const token = await testToken();
   const usageStart = await getUsage(token);
 
   const model = "google/gemini-2.0-flash-lite-001";
@@ -126,7 +126,7 @@ t.test("Streaming completion and cost", async (t) => {
 });
 
 t.test("OpenAI completion and cost", async (t) => {
-  const token = await createToken();
+  const token = await testToken();
   const usageStart = await getUsage(token);
 
   const model = "gpt-4.1-nano";
@@ -144,7 +144,7 @@ t.test("OpenAI completion and cost", async (t) => {
 });
 
 t.test("OpenAI responses streaming completion and cost", async (t) => {
-  const token = await createToken();
+  const token = await testToken();
   const usageStart = await getUsage(token);
 
   const model = "gpt-4.1-nano";
@@ -163,9 +163,46 @@ t.test("OpenAI responses streaming completion and cost", async (t) => {
 
 t.test("Budget limit exceeded", async (t) => {
   // This test assumes the user has already exceeded their budget
-  const token = await createToken("blocked@example.com");
+  const token = await testToken("blocked@example.com");
   const res = await fetch("/openrouter/v1/models", { headers: { Authorization: `Bearer ${token}` } });
   t.equal(res.status, 429);
   const body = await res.json();
   t.match(body.message, /\$0 in 1 days/);
+});
+
+t.test("Admin: unauthorized access", async (t) => {
+  const token = await testToken();
+  const res = await fetch("/admin/usage", { headers: { Authorization: `Bearer ${token}` } });
+  t.equal(res.status, 403);
+  const body = await res.json();
+  t.match(body.message, /Admin access required/);
+});
+
+t.test("Admin: usage data", async (t) => {
+  const token = await testToken(adminEmail);
+  const res = await fetch("/admin/usage", { headers: { Authorization: `Bearer ${token}` } });
+  t.equal(res.status, 200);
+  const body = await res.json();
+  t.ok(Array.isArray(body.data));
+  t.type(body.data[0]?.email, "string");
+  t.type(body.data[0]?.date, "string");
+  t.type(body.data[0]?.cost, "number");
+});
+
+t.test("Admin: token generation", async (t) => {
+  const token = await testToken(adminEmail);
+  const res = await fetch("/admin/token?email=user@example.com", { headers: { Authorization: `Bearer ${token}` } });
+  t.equal(res.status, 200);
+  const body = await res.json();
+  t.type(body.token, "string");
+  const models = await fetch("/openrouter/v1/models", { headers: { Authorization: `Bearer ${body.token}` } });
+  t.equal(models.status, 200);
+});
+
+t.test("Admin: invalid endpoint", async (t) => {
+  const token = await testToken(adminEmail);
+  const res = await fetch("/admin/invalid", { headers: { Authorization: `Bearer ${token}` } });
+  t.equal(res.status, 404);
+  const body = await res.json();
+  t.match(body.message, /Unknown admin action/);
 });

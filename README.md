@@ -228,6 +228,9 @@ const salt = {
 # Required: Your JWT signing key
 AIPIPE_SECRET=$(openssl rand -base64 12)
 
+# Optional: add email IDs of admin users separated by comma and/or whitespace.
+ADMIN_EMAILS="admin@example.com, admin2@example.com, ..."
+
 # Optional: Add only the APIs you need
 OPENROUTER_API_KEY=sk-or-v1-...  # via openrouter.ai/settings
 OPENAI_API_KEY=sk-...            # via platform.openai.com/api-keys
@@ -237,7 +240,7 @@ OPENAI_API_KEY=sk-...            # via platform.openai.com/api-keys
 
 ```bash
 npm run dev   # Runs at http://localhost:8787
-npm test      # Run all tests
+ADMIN_EMAILS=admin@example.com npm test
 curl http://localhost:8787/usage -H "Authorization: $AIPIPE_TOKEN"
 ```
 
@@ -246,6 +249,7 @@ curl http://localhost:8787/usage -H "Authorization: $AIPIPE_TOKEN"
 ```bash
 # Add secrets to production
 npx wrangler secret put AIPIPE_SECRET
+npx wrangler secret put ADMIN_EMAILS
 npx wrangler secret put OPENROUTER_API_KEY
 npx wrangler secret put OPENAI_API_KEY
 
@@ -254,6 +258,44 @@ npm run deploy
 
 # Test
 BASE_URL=https://aipipe.org npm test
+```
+
+### Admin API
+
+**`GET /admin/usage`**: Get historical usage of all users. Only for admins
+
+```bash
+curl https://aipipe.org/admin/usage -H "Authorization: $AIPIPE_TOKEN"
+```
+
+Response:
+
+```json
+{
+  "data": [
+    {
+      "email": "test@example.com",
+      "date": "2025-04-18",
+      "cost": 25.5
+    }
+    // ...
+  ]
+}
+```
+
+**`GET /admin/token?email=user@example.com`**: Generate a JWT token for any user. Only for admins.
+
+```bash
+curl "https://aipipe.org/admin/token?email=user@example.com" -H "Authorization: $AIPIPE_TOKEN"
+```
+
+Response:
+
+```json
+{
+  "code": 200,
+  "token": "eyJhbGciOiJIUzI1NiI..."
+}
 ```
 
 ## Architecture
