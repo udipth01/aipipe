@@ -160,27 +160,7 @@ async function validateToken(token, secret) {
 
 /** Return { token } given valid Google credentials */
 async function tokenFromCredential(credential, secret) {
-  // From https://www.googleapis.com/oauth2/v3/certs
-  const JWKS = jose.createLocalJWKSet({
-    keys: [
-      {
-        use: "sig",
-        e: "AQAB",
-        kid: "c37da75c9fbe18c2ce9125b9aa1f300dcb31e8d9",
-        n: "vUiHFY8O45dBoYLGipsgaVOk7rGpim6CK1iPG2zSt3sO9-09S9dB5nQdIelGye-mouQXaW5U7H8lZnv5wLJ8VSzquaSh3zJkbDq-Wvgas6U-FJaMy35kiExr5gUKUGPAIjI2sLASDbFD0vT_jxtg0ZRknwkexz_gZadZQ-iFEO7unjpE_zQnx8LhN-3a8dRf2B45BLY5J9aQJi4Csa_NHzl9Ym4uStYraSgwW93VYJwDJ3wKTvwejPvlW3n0hUifvkMke3RTqnSDIbP2xjtNmj12wdd-VUw47-cor5lMn7LG400G7lmI8rUSEHIzC7UyzEW7y15_uzuqvIkFVTLXlQ",
-        kty: "RSA",
-        alg: "RS256",
-      },
-      {
-        kty: "RSA",
-        n: "up_Ts3ztawVy5mKB9fFwdj_AtqtYWWLh_feqL-PGY7aMF0DXpw0su6g90nvp-ODLSbc4OJac7iNYcJ2Fk_25nWqDLAC_LiRClSkfQXMTPQPl3jFs8jaDHxLjM_jOXacTxnWxFFFfUTBvz5p5GrmH504nfNAmNTvrUEJFlYHOG8TF3TbgD4h7MzZDjGCYvfcO47BVMLBPflX4fSYD6QHaYlrdwXUyMwjwaoVHxFaK4_T_MScjPEER3JrS26Dd9kzmzMRX0Dy49HHCtX7NYedHSDf51uRmVSNXefJYp1_RbPwi7U40dY57ufuqxXcihTmmZvKUHpfxHJRBXktgkD2RFQ",
-        use: "sig",
-        alg: "RS256",
-        kid: "bc19ca8f1fad75678318adc4b24229ad75dd1a12",
-        e: "AQAB",
-      },
-    ],
-  });
+  const JWKS = jose.createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"));
   const { payload } = await jose.jwtVerify(credential, JWKS, {
     issuer: "https://accounts.google.com",
     audience: "1098061226510-1gn6mjnpdi30jiehanff71ri0ejva0t7.apps.googleusercontent.com",

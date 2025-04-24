@@ -238,6 +238,8 @@ OPENAI_API_KEY=sk-...            # via platform.openai.com/api-keys
 
 4. Test your deployment:
 
+Ensure that `.dev.vars` has all keys set (including optional ones). Then run:
+
 ```bash
 npm run dev   # Runs at http://localhost:8787
 ADMIN_EMAILS=admin@example.com npm test
