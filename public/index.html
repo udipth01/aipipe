@@ -45,7 +45,8 @@
         <h1 class="display-4 fw-bold mb-3 text-shadow">Run AI Web Apps Without a Backend</h1>
         <p class="lead mb-4">Access LLMs directly from your browser. Simple, secure, and scalable.</p>
         <a href="login" class="btn btn-primary btn-lg me-3">Log in</a>
-        <a href="playground" class="btn btn-outline-light btn-lg">Playground</a>
+        <a href="playground" class="btn btn-outline-light btn-lg me-3">Playground</a>
+        <a href="https://github.com/sanand0/aipipe?tab=readme-ov-file#api" class="btn btn-outline-light btn-lg">API</a>
       </div>
       <div class="col-lg-6 mb-3">
         <div class="p-4 bg-dark bg-opacity-75 rounded-3 shadow-lg">
@@ -153,7 +154,8 @@ const response = await fetch("https://aipipe.org/openrouter/v1/chat/completions"
       <h3>OpenAI</h3>
       <p>You can also use an OpenAI model directly with the
         <a href="https://platform.openai.com/docs/api-reference/chat" class="text-reset">Chat Completion</a> or
-        <a href="https://platform.openai.com/docs/api-reference/responses" class="text-reset">Responses</a> API:</p>
+        <a href="https://platform.openai.com/docs/api-reference/responses" class="text-reset">Responses</a> API:
+      </p>
       <pre><code class="language-javascript">import { getProfile } from "https://aipipe.org/aipipe.js";
 
 const { token, email } = getProfile();
@@ -166,6 +168,8 @@ const response = await fetch("https://aipipe.org/openrouter/v1/responses", {
 }).then(r => r.json());
 </code></pre>
 
+
+      <p class="text-center"><a href="https://github.com/sanand0/aipipe?tab=readme-ov-file#api" class="btn btn-outline-light btn-lg my-5">API Documentation</a></p>
     </div>
   </section>
 
