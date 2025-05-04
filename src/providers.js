@@ -4,7 +4,11 @@ export const providers = {
   openrouter: {
     transform: async ({ path, request, env }) => ({
       url: `https://openrouter.ai/api${path}`,
-      headers: updateHeaders(request.headers, [], { Authorization: `Bearer ${env["OPENROUTER_API_KEY"]}` }),
+      headers: updateHeaders(request.headers, [], {
+        Authorization: `Bearer ${env["OPENROUTER_API_KEY"]}`,
+        "HTTP-Referer": "https://aipipe.org/",
+        "X-Title": "AIPipe",
+      }),
       ...(request.method == "POST" ? { body: await request.arrayBuffer() } : {}),
     }),
     cost: async ({ model, usage }) => {
