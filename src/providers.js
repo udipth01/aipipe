@@ -40,6 +40,7 @@ export const providers = {
     },
     cost: async ({ model, usage }) => {
       const [input, output] = openaiCost[model] ?? [0, 0];
+      // Embeddings api: { prompt_tokens }
       // Chat Completion usage: { prompt_tokens, completion_tokens }
       // Responses API usage: {input_tokens, output_tokens}
       const cost =
@@ -129,7 +130,7 @@ const openaiCost = {
   "tts-1": [0, 15],
   o1: [15, 60],
   o3: [10, 40],
-  // "text-embedding-3-large": [0.13, 0],
-  // "text-embedding-3-small": [0.02, 0],
-  // "text-embedding-ada-002": [0.1, 0],
+  "text-embedding-3-large": [0.13, 0],
+  "text-embedding-3-small": [0.02, 0],
+  "text-embedding-ada-002": [0.1, 0],
 };

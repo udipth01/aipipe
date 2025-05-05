@@ -213,6 +213,37 @@ Response:
 }
 ```
 
+**Example**: Create [embeddings](https://platform.openai.com/docs/api-reference/embeddings)
+
+```bash
+curl https://aipipe.org/openai/v1/embeddings -H "Authorization: $AIPIPE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "text-embedding-3-small", "input": "What is 2 + 2?" }'
+```
+
+Response:
+
+```jsonc
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "embedding",
+      "index": 0,
+      "embedding": [
+        0.010576399, -0.037246477
+        // ...
+      ]
+    }
+  ],
+  "model": "text-embedding-3-small",
+  "usage": {
+    "prompt_tokens": 8,
+    "total_tokens": 8
+  }
+}
+```
+
 ## Admin Guide
 
 To self-host AI Pipe, you need a:
@@ -272,6 +303,12 @@ Ensure that `.dev.vars` has all keys set (including optional ones). Then run:
 npm run dev   # Runs at http://localhost:8787
 ADMIN_EMAILS=admin@example.com npm test
 curl http://localhost:8787/usage -H "Authorization: $AIPIPE_TOKEN"
+```
+
+Or run specific tests, e.g. only OpenAI tests, via:
+
+```bash
+npm test -- --grep 'OpenAI'
 ```
 
 5. Deploy to Cloudflare:

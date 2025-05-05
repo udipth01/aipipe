@@ -106,6 +106,26 @@ t.test("Completion and cost", async (t) => {
   t.ok(usageEnd.cost > usageStart.cost);
 });
 
+t.test("Embedding and cost", async (t) => {
+  const token = await testToken();
+  const usageStart = await getUsage(token);
+
+  const model = "text-embedding-3-small";
+  const res = await fetch("/openai/v1/embeddings", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ model, input: "What is 2 + 2?" }),
+  });
+  t.equal(res.status, 200);
+  const body = await res.json();
+  t.match(body.object, "list");
+  t.match(body.model, model);
+
+  const usageEnd = await getUsage(token);
+  // Cost should be 8 Tok * $0.02 / MTok
+  t.ok(Math.abs(usageEnd.cost - usageStart.cost - 1.6e-7) < 1e-12);
+});
+
 t.test("Streaming completion and cost", async (t) => {
   const token = await testToken();
   const usageStart = await getUsage(token);
